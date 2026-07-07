@@ -1,0 +1,512 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>英語力診断テスト 結果（成績表）</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;800&display=swap" rel="stylesheet" />
+  <style>
+    /* === design.md 準拠のカラー === */
+    :root {
+      --bg: #FFFFFF;
+      --bg-soft: #F4F6F8;
+      --line: #D5D8DC;
+      --text: #1C2833;
+      --muted: #566573;
+      --teal: #1A5276;        /* メイン：ネイビー（見出し・レーダー・ボタン） */
+      --teal-dark: #0E3860;   /* 濃ネイビー（表ヘッダー・ENGLEAD背景） */
+      --teal-soft: #EBF5FB;   /* 薄い青（％行） */
+      --orange: #F39C12;      /* CEFR現在地のハイライト */
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg-soft); color: var(--text);
+      font-family: "Noto Sans JP", "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+      line-height: 1.6;
+    }
+    .sheet {
+      max-width: 1200px; margin: 20px auto; background: var(--bg);
+      padding: 24px 28px 36px; border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
+
+    /* ===== ヘッダー（ロゴ配置） ===== */
+    .header { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px; }
+    .header-left { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    .logo-prime { height: 42px; width: auto; display: block; }
+    .header h1 { font-size: 20px; margin: 0; font-weight: 700; color: var(--teal-dark); }
+    .header-right { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+    /* タビケン留学・ENGLEADを1.5倍に拡大、間に「×」で協働を表現 */
+    .logo-ryugaku { height: 60px; width: auto; display: block; }
+    .collab-x { font-size: 34px; font-weight: 400; color: var(--muted); line-height: 1; }
+    .logo-englead { height: 44px; width: auto; display: block; }
+    .date { font-size: 12px; color: var(--muted); margin: 12px 0 16px; }
+
+    /* ===== 上段：左カラム（総合結果＋スコア概要の2段）｜レーダー ===== */
+    .top-area { display: flex; gap: 16px; align-items: stretch; flex-wrap: wrap; }
+    .col-title { font-size: 13px; font-weight: 700; color: var(--muted); margin-bottom: 8px; }
+    /* 左カラム（2段：総合バー＋スコア概要）。高さはレーダーに合わせる */
+    .left-col { flex: 1; min-width: 440px; display: flex; flex-direction: column; gap: 12px; }
+    /* 上段：得点率｜CEFR｜飛び級（横並びの帯） */
+    .overall-bar {
+      display: flex; align-items: stretch; gap: 8px;
+      border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; background: #f8fafc;
+    }
+    .ob-item { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; line-height: 1.1; }
+    .ob-label { font-size: 11px; color: var(--muted); }
+    .ob-total { font-size: 28px; font-weight: 700; color: var(--teal); }
+    .ob-cefr { font-size: 26px; font-weight: 700; color: var(--orange); }
+    .ob-stars { font-size: 22px; color: var(--orange); letter-spacing: 2px; }
+    .ob-sep { width: 1px; background: var(--line); }
+    /* 下段：スコア概要（余りの高さを埋めてデッドスペースを解消） */
+    .summary-col { flex: 1; display: flex; flex-direction: column; }
+    /* ===== スコアサマリー ===== */
+    .summary { border-collapse: collapse; font-size: 13px; width: 100%; }
+    .summary th, .summary td { border: 1px solid var(--line); text-align: center; padding: 6px 8px; }
+    .summary .cat-head th { background: #eef2f5; font-weight: 700; font-size: 13px; }
+    .summary .sub-head th { background: #f6f8fa; font-weight: 600; font-size: 11px; color: var(--muted); }
+    .summary .count-row td { background: var(--teal-dark); color: #fff; font-weight: 700; font-size: 14px; }
+    .summary .pct-row td { background: var(--teal-soft); color: #14505c; font-weight: 700; }
+    .summary .big { font-size: 15px; }
+    .summary .cefr-cell { background: #fff !important; color: var(--text) !important; font-weight: 700; font-size: 16px; }
+
+    /* ===== 右：レーダー（大きめ・左カラムと高さを揃える） ===== */
+    .radar-box { flex: 0 0 360px; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+    .radar-box #radar { flex: 1; display: flex; align-items: center; justify-content: center; }
+
+    /* ===== 下段：学習ロードマップ（全幅・大きく） ===== */
+    .roadmap-area { margin-top: 24px; }
+    .roadmap-area h2 { font-size: 16px; margin: 0 0 8px; }
+    .roadmap-img { width: 100%; height: auto; display: block; border: 1px solid var(--line); border-radius: 8px; }
+
+    /* ===== 受講できる講座：ボタン＋モーダル ===== */
+    .course-area { margin-top: 16px; text-align: center; }
+    .course-btn {
+      background: var(--teal); color: #fff; border: none; border-radius: 9px;
+      padding: 12px 24px; font-size: 14px; font-weight: 600; cursor: pointer;
+    }
+    .course-btn:hover { background: #216d7e; }
+    .modal-overlay {
+      display: none; position: fixed; inset: 0; background: rgba(0,0,0,.6);
+      z-index: 100; align-items: center; justify-content: center; padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal-content {
+      background: #fff; border-radius: 12px; padding: 16px; position: relative;
+      max-width: 720px; width: 100%; max-height: 90vh; overflow: auto;
+    }
+    .modal-title { font-size: 15px; font-weight: 700; margin: 0 0 10px; }
+    .modal-close {
+      position: absolute; top: 10px; right: 12px; border: none; background: #f1f5f9;
+      width: 30px; height: 30px; border-radius: 50%; font-size: 18px; cursor: pointer; line-height: 1;
+    }
+    /* モーダル内の講座画像（表全体版・余白なし） */
+    .course-img-frame { width: 100%; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+    .course-img-frame img { width: 100%; height: auto; display: block; }
+
+    /* ===== 下段：CEFRチャート（全幅） ===== */
+    .chart-area { margin-top: 24px; }
+    .chart-area h2 { font-size: 16px; margin: 0 0 8px; }
+
+    /* ===== CEFRレベルチャート表（全幅・横スクロールなしを目指す） ===== */
+    .cefr-chart { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; }
+    .cefr-chart table { border-collapse: collapse; font-size: 9.5px; width: 100%; table-layout: fixed; }
+    .cefr-chart th, .cefr-chart td {
+      border: 1px solid var(--line); padding: 3px 3px; vertical-align: top; text-align: center;
+      word-break: break-word; overflow-wrap: anywhere;
+    }
+    .cefr-chart thead th { background: #eef2f5; font-weight: 700; }
+    .cefr-chart .row-label {
+      background: #f0f4f7; font-weight: 600; text-align: left; white-space: nowrap; width: 82px;
+    }
+    .cefr-chart .lvl-head.now { background: var(--orange); color: #fff; }
+    .cefr-chart td.now { background: #fff7ed; }
+    .cefr-chart .cando, .cefr-chart .jobs { text-align: left; font-size: 8.5px; line-height: 1.45; white-space: pre-line; }
+
+    .footnote { margin-top: 24px; font-size: 11px; color: var(--muted); }
+  </style>
+  <script>
+    /* 簡易パスワードゲート（社内デモ用・GitHub Pages https で動作） */
+    (function () {
+      var PW_HASH = "d908607e3a7d87b691cc2cce7057c2dd8bc2b701bbc9e14a662bd9e25fc54756";
+      if (localStorage.getItem("demo_auth") === PW_HASH) return;
+      function mount() {
+        var ov = document.createElement("div");
+        ov.style.cssText = "position:fixed;inset:0;background:#0E3860;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font-family:'Noto Sans JP',sans-serif;";
+        ov.innerHTML =
+          '<div style="color:#fff;font-size:18px;font-weight:700;">英語力診断テスト（社内デモ）</div>' +
+          '<div style="color:#cfe0ee;font-size:13px;">パスワードを入力してください</div>' +
+          '<input id="pw-in" type="password" autocomplete="off" style="padding:11px 14px;font-size:16px;border-radius:8px;border:none;width:240px;" />' +
+          '<button id="pw-btn" style="padding:10px 24px;font-size:15px;border-radius:8px;border:none;background:#2E86C1;color:#fff;font-weight:600;cursor:pointer;">開く</button>' +
+          '<div id="pw-err" style="color:#ffd27f;font-size:13px;height:16px;"></div>';
+        document.body.appendChild(ov);
+        document.documentElement.style.overflow = "hidden";
+        async function check() {
+          var v = document.getElementById("pw-in").value;
+          var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v));
+          var hex = Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+          if (hex === PW_HASH) {
+            localStorage.setItem("demo_auth", PW_HASH);
+            ov.remove();
+            document.documentElement.style.overflow = "";
+          } else { document.getElementById("pw-err").textContent = "パスワードが違います"; }
+        }
+        document.getElementById("pw-btn").onclick = check;
+        document.getElementById("pw-in").addEventListener("keydown", function (e) { if (e.key === "Enter") check(); });
+        document.getElementById("pw-in").focus();
+      }
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
+      else mount();
+    })();
+  </script>
+</head>
+<body>
+  <div class="sheet">
+    <!-- ヘッダー -->
+    <div class="header">
+      <div class="header-left">
+        <img class="logo-prime" src="assets/logo_prime.png" alt="タビケンプライム" />
+        <h1>英語力診断テスト結果</h1>
+      </div>
+      <div class="header-right">
+        <img class="logo-ryugaku" src="assets/logo_ryugaku.png" alt="タビケン留学" />
+        <span class="collab-x">×</span>
+        <img class="logo-englead" src="assets/logo_englead_primary.png" alt="ENGLEAD" />
+      </div>
+    </div>
+    <div class="date"><span id="member-disp"></span>実施日：<span id="date"></span></div>
+
+    <!-- 上段：左カラム（総合結果＋スコア概要）｜レーダー -->
+    <div class="top-area">
+      <div class="left-col">
+        <!-- 上段：得点率｜CEFR｜飛び級 -->
+        <div class="overall-bar">
+          <div class="ob-item"><div class="ob-label">総合得点率</div><div class="ob-total" id="v-total"></div></div>
+          <div class="ob-sep"></div>
+          <div class="ob-item"><div class="ob-label">CEFR（現状）</div><div class="ob-cefr" id="v-cefr"></div></div>
+          <div class="ob-sep"></div>
+          <div class="ob-item"><div class="ob-label">飛び級</div><div class="ob-stars" id="v-stars"></div></div>
+        </div>
+
+        <!-- 下段：スコア概要 -->
+        <div class="summary-col">
+          <div class="col-title">スコア概要</div>
+          <table class="summary">
+          <thead>
+            <tr class="cat-head">
+              <th colspan="1">単語</th>
+              <th colspan="1">文法</th>
+              <th colspan="1">リスニング</th>
+              <th colspan="4">スピーキング</th>
+            </tr>
+            <tr class="sub-head">
+              <th>正答数</th>
+              <th>正答数</th>
+              <th>正答数</th>
+              <th>語彙/文法</th>
+              <th>文章構文</th>
+              <th>発音</th>
+              <th>流暢さ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="count-row">
+              <td id="c-vocab" class="big"></td>
+              <td id="c-grammar" class="big"></td>
+              <td id="c-listening" class="big"></td>
+              <td id="c-sp1"></td>
+              <td id="c-sp2"></td>
+              <td id="c-sp3"></td>
+              <td id="c-sp4"></td>
+            </tr>
+            <tr class="pct-row">
+              <td id="p-vocab"></td>
+              <td id="p-grammar"></td>
+              <td id="p-listening"></td>
+              <td id="p-sp1"></td>
+              <td id="p-sp2"></td>
+              <td id="p-sp3"></td>
+              <td id="p-sp4"></td>
+            </tr>
+          </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 右：レーダーチャート -->
+      <div class="radar-box">
+        <div class="col-title">レーダーチャート</div>
+        <div id="radar"></div>
+      </div>
+    </div>
+
+    <!-- 中段：CEFRレベルチャート（全幅） -->
+    <div class="chart-area">
+      <h2>CEFRレベルチャート</h2>
+      <div class="cefr-chart" id="cefr-chart"></div>
+    </div>
+
+    <!-- 下段：学習ロードマップ（全幅・大きく） -->
+    <div class="roadmap-area">
+      <h2>学習ロードマップ</h2>
+      <img class="roadmap-img" src="assets/roadmap.png" alt="学習ロードマップ" />
+    </div>
+
+    <!-- 受講できる講座（ボタン→モーダル表示） -->
+    <div class="course-area">
+      <button class="course-btn" onclick="openCourseModal()">受講できる講座を見る</button>
+    </div>
+    <div class="modal-overlay" id="course-modal" onclick="if(event.target===this)closeCourseModal()">
+      <div class="modal-content">
+        <button class="modal-close" onclick="closeCourseModal()" aria-label="閉じる">×</button>
+        <div class="modal-title">受講できる講座</div>
+        <div class="course-img-frame"><img src="assets/beginner.png" alt="講座一覧" /></div>
+      </div>
+    </div>
+
+    <div class="footnote" id="footnote"></div>
+  </div>
+
+  <script>
+    /* =========================================================
+       採点データ：採点画面からURLで渡されたデータを優先。
+       単体で開いた場合はサンプルを表示。
+       ========================================================= */
+    const SAMPLE = {
+      date: "2026/07/03",
+      memberName: "（サンプル）山田 太郎",
+      csid: "",
+      vocab: {
+        juyo:    { correct: 4, total: 6 },  // 受容
+        hasshin: { correct: 4, total: 6 },  // 発信
+      },
+      grammar:   { correct: 1, total: 4 },
+      listening: { correct: 5, total: 8 },
+      speaking:  { 語彙: 3, 文章構文: 2, 発音: 3, 流暢さ: 2, max: 5 },
+    };
+    // URLの ?data= から採点結果を読み取る（無ければサンプル）
+    function loadData() {
+      const raw = new URLSearchParams(location.search).get("data");
+      if (raw) {
+        try { return JSON.parse(decodeURIComponent(raw)); } catch (e) { console.error(e); }
+      }
+      return SAMPLE;
+    }
+    const DATA = loadData();
+    const IS_SAMPLE = !new URLSearchParams(location.search).get("data");
+
+    /* ---------- 判定ロジック ---------- */
+    // 正答率（0〜1）
+    function rate(c, t) { return t > 0 ? c / t : 0; }
+
+    // CEFR判定（VLOOKUP 近似一致の再現）
+    const CEFR_TABLE = [
+      [0, "A1-"], [0.2, "A1-"], [0.21, "A1"], [0.4, "A1"],
+      [0.41, "A1+"], [0.5, "A1+"], [0.51, "A2-"], [0.6, "A2-"],
+      [0.61, "A2"], [0.8, "A2"], [0.81, "A2+"], [0.9, "A2+"],
+      [0.91, "B1"], [1, "B1"],
+    ];
+    function toCEFR(x) {
+      let c = CEFR_TABLE[0][1];
+      for (const [t, v] of CEFR_TABLE) { if (t <= x) c = v; else break; }
+      return c;
+    }
+
+    // 飛び級判定（総合％、関数どおり）
+    function toStars(pct) {
+      if (pct <= 61) return "☆☆☆";
+      if (pct <= 75) return "★☆☆";
+      if (pct <= 80) return "★★☆";
+      if (pct <= 90) return "★★☆";
+      return "★★★";
+    }
+
+    /* ---------- 計算 ---------- */
+    // 8項目の正答率
+    const r = {
+      juyo: rate(DATA.vocab.juyo.correct, DATA.vocab.juyo.total),
+      hasshin: rate(DATA.vocab.hasshin.correct, DATA.vocab.hasshin.total),
+      grammar: rate(DATA.grammar.correct, DATA.grammar.total),
+      listening: rate(DATA.listening.correct, DATA.listening.total),
+      sp1: DATA.speaking.語彙 / DATA.speaking.max,
+      sp2: DATA.speaking.文章構文 / DATA.speaking.max,
+      sp3: DATA.speaking.発音 / DATA.speaking.max,
+      sp4: DATA.speaking.流暢さ / DATA.speaking.max,
+    };
+    const items = [r.juyo, r.hasshin, r.grammar, r.listening, r.sp1, r.sp2, r.sp3, r.sp4];
+    const overall = items.reduce((a, b) => a + b, 0) / items.length; // 0〜1
+    const overallPct = Math.round(overall * 100);
+
+    const pct = (x) => Math.round(x * 100) + "%";
+
+    /* ---------- 画面に反映 ---------- */
+    document.getElementById("date").textContent = DATA.date;
+    document.getElementById("member-disp").textContent = DATA.memberName ? `会員名：${DATA.memberName}　／　` : "";
+    document.getElementById("footnote").textContent = IS_SAMPLE
+      ? "試作版／サンプルスコアを表示中（採点画面の「成績表を発行」から実際の結果を表示できます）。"
+      : "採点結果を表示中／総合・CEFR・飛び級は確定ロジックで自動計算しています。";
+
+    // 単語（受容＋発信の合計で表示）
+    const vC = DATA.vocab.juyo.correct + DATA.vocab.hasshin.correct;
+    const vT = DATA.vocab.juyo.total + DATA.vocab.hasshin.total;
+    document.getElementById("c-vocab").textContent = `${vC} / ${vT}`;
+    document.getElementById("p-vocab").textContent = pct(vC / vT);
+
+    document.getElementById("c-grammar").textContent = `${DATA.grammar.correct} / ${DATA.grammar.total}`;
+    document.getElementById("p-grammar").textContent = pct(r.grammar);
+    document.getElementById("c-listening").textContent = `${DATA.listening.correct} / ${DATA.listening.total}`;
+    document.getElementById("p-listening").textContent = pct(r.listening);
+
+    // スピーキング4観点
+    document.getElementById("c-sp1").textContent = `${DATA.speaking.語彙} / ${DATA.speaking.max}`;
+    document.getElementById("c-sp2").textContent = `${DATA.speaking.文章構文} / ${DATA.speaking.max}`;
+    document.getElementById("c-sp3").textContent = `${DATA.speaking.発音} / ${DATA.speaking.max}`;
+    document.getElementById("c-sp4").textContent = `${DATA.speaking.流暢さ} / ${DATA.speaking.max}`;
+    document.getElementById("p-sp1").textContent = pct(r.sp1);
+    document.getElementById("p-sp2").textContent = pct(r.sp2);
+    document.getElementById("p-sp3").textContent = pct(r.sp3);
+    document.getElementById("p-sp4").textContent = pct(r.sp4);
+
+    // 総合・CEFR・飛び級（判定バーに表示）
+    document.getElementById("v-total").textContent = overallPct + "%";
+    document.getElementById("v-cefr").textContent = toCEFR(overall);
+    document.getElementById("v-stars").textContent = toStars(overall * 100);
+
+    /* ---------- レーダーチャート（自作SVG） ---------- */
+    function drawRadar() {
+      const size = 300, cx = 150, cy = 150, R = 110, MAX = 10;
+      // 4軸の値（0〜10）：単語＝受容発信平均、文法、リスニング、スピーキング＝4観点平均
+      const axes = [
+        { label: "単語", value: ((r.juyo + r.hasshin) / 2) * MAX, ang: -90 },
+        { label: "文法", value: r.grammar * MAX, ang: 0 },
+        { label: "リスニング", value: r.listening * MAX, ang: 90 },
+        { label: "スピーキング", value: ((r.sp1 + r.sp2 + r.sp3 + r.sp4) / 4) * MAX, ang: 180 },
+      ];
+      const pt = (ang, rad) => {
+        const a = (ang * Math.PI) / 180;
+        return [cx + rad * Math.cos(a), cy + rad * Math.sin(a)];
+      };
+      // ラベルが切れないよう左右上下に余白を確保（viewBoxを広げる）
+      let svg = `<svg viewBox="-60 -14 420 328" width="330" height="258">`;
+      // グリッド（同心の四角形）
+      for (let lv = 2; lv <= MAX; lv += 2) {
+        const rr = (lv / MAX) * R;
+        const pts = axes.map((ax) => pt(ax.ang, rr).join(",")).join(" ");
+        svg += `<polygon points="${pts}" fill="none" stroke="#e2e8f0" stroke-width="1"/>`;
+      }
+      // 軸線＋ラベル
+      axes.forEach((ax) => {
+        const [x, y] = pt(ax.ang, R);
+        svg += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#cbd5e1" stroke-width="1"/>`;
+        const [lx, ly] = pt(ax.ang, R + 22);
+        svg += `<text x="${lx}" y="${ly}" font-size="13" fill="#334155" text-anchor="middle" dominant-baseline="middle">${ax.label}</text>`;
+      });
+      // データ多角形
+      const dpts = axes.map((ax) => pt(ax.ang, (ax.value / MAX) * R).join(",")).join(" ");
+      svg += `<polygon points="${dpts}" fill="rgba(43,138,158,.25)" stroke="#2b8a9e" stroke-width="2"/>`;
+      // データ点
+      axes.forEach((ax) => {
+        const [x, y] = pt(ax.ang, (ax.value / MAX) * R);
+        svg += `<circle cx="${x}" cy="${y}" r="3" fill="#2b8a9e"/>`;
+      });
+      // 目盛り（上方向に0,2,…,10）
+      for (let lv = 0; lv <= MAX; lv += 2) {
+        const [x, y] = pt(-90, (lv / MAX) * R);
+        svg += `<text x="${x + 8}" y="${y}" font-size="9" fill="#94a3b8" dominant-baseline="middle">${lv}</text>`;
+      }
+      svg += `</svg>`;
+      document.getElementById("radar").innerHTML = svg;
+    }
+    drawRadar();
+
+    /* =========================================================
+       CEFRレベルチャート表（CSV原本より）
+       ========================================================= */
+    const CEFR_LEVELS = ["A1-", "A1", "A1+", "A2-", "A2", "A2+", "B1-", "B1", "B1+", "B2-", "B2", "B2+"];
+
+    // 各レベル個別の値（12個）を {text, span:1} の配列に変換
+    const each = (arr) => arr.map((t) => ({ text: t, span: 1 }));
+
+    const CEFR_CHART_ROWS = [
+      {
+        label: "必要学習時間",
+        cells: each(["1ヶ月", "1ヶ月", "1ヶ月", "2ヶ月", "2ヶ月", "2ヶ月", "2ヶ月", "2ヶ月", "3ヶ月", "3ヶ月", "3ヶ月", "3ヶ月"]),
+      },
+      {
+        label: "自主学習",
+        cells: each(["3ヶ月", "3ヶ月", "5ヶ月", "5ヶ月", "6ヶ月", "6ヶ月", "10ヶ月", "10ヶ月", "12ヶ月", "12ヶ月", "-", "-"]),
+      },
+      {
+        label: "できることの目安",
+        cells: each([
+          "簡単な自己紹介", "簡単な質問", "人物や場所について簡潔に説明", "道案内/買い物",
+          "興味のある話題への参加", "身近で日常の事柄を説明", "日常での賛成/反対の簡単な理由",
+          "簡単な指示や方法の説明", "用意した意見を会議で伝える", "面接を受ける", "会議で討論参加", "商談でプレゼン",
+        ]),
+      },
+      {
+        label: "語学学校の英語レベル",
+        cells: [
+          { text: "Beginner", span: 3 },
+          { text: "Elementary", span: 2 },
+          { text: "Lower-intermediate", span: 2 },
+          { text: "Intermediate", span: 2 },
+          { text: "Upper-intermediate", span: 2 },
+          { text: "Pre-Advanced", span: 1 },
+        ],
+      },
+      {
+        label: "Can-Do",
+        cls: "cando",
+        cells: [
+          { span: 3, text: "・知っている定型表現で挨拶ができる\n・自分の名前を言える\n・数字を英語で言える\n・誕生日を尋ねたり、教えたりできる。" },
+          { span: 3, text: "・事前に準備していればしっかりと自己紹介ができる\n・単純な道案内ができる\n・絵や写真を用いて、情報を伝えられる\n・駅や空港で短いアナウンスを理解できる\n・馴染みのある発音であれば、指示が理解できる" },
+          { span: 3, text: "・関心のある話題であれば、グループ内の会話の大まかな要点を理解できる\n・自分の趣味や将来の希望ならば、社交的な会話を続けられる\n・会議で議題の要点を理解し、賛成・反対程度は発言できる" },
+          { span: 3, text: "・ネイティブがいる場でも、日常会話を理解し自分の意見を発することができる\n・専門/興味のある分野であれば、映画やニュースの要点を理解できる\n・様々な慣用表現を用いて、プレゼン発表ができる\n・ネイティブがいる場でも議論に積極的に参加ができる" },
+        ],
+      },
+      {
+        label: "チャレンジできる職種",
+        cls: "jobs",
+        cells: [
+          { span: 3, text: "・クリーニング(清掃)\n・日本食レストランのディッシュウォッシャー" },
+          { span: 3, text: "・クリーニング(清掃)\n・ホテルのルームキーピング\n・日本食レストランのディッシュウォッシャー\n・日本食レストランのウェイター" },
+          { span: 3, text: "・クリーニング(清掃)\n・ホテルのルームキーピング\n・日本レストランのウェイター\n・ローカルカフェのディッシュウォッシャー\n・ローカルレストランのディッシュウォッシャー\n・日本人観光客向けのツアーガイド(ローカル企業とのやり取りあり)" },
+          { span: 3, text: "・ホテルのフロント\n・ローカルカフェのウェイター\n・ローカルレストランのウェイター\n・バーテンダー\n・ファッションブランドのセールス\n・ローカル企業のアルバイト\n・日本人観光客向けのツアーガイド(ローカル企業とのやり取りあり)" },
+        ],
+      },
+    ];
+
+    function drawCEFRChart(currentCEFR) {
+      const curIdx = CEFR_LEVELS.indexOf(currentCEFR); // 現在レベルの列位置
+      let html = '<table><thead><tr><th class="row-label">CEFRレベル</th>';
+      CEFR_LEVELS.forEach((lv, i) => {
+        html += `<th class="lvl-head${i === curIdx ? " now" : ""}">${lv}</th>`;
+      });
+      html += "</tr></thead><tbody>";
+
+      CEFR_CHART_ROWS.forEach((row) => {
+        html += `<tr><td class="row-label">${row.label}</td>`;
+        let col = 0;
+        row.cells.forEach((cell) => {
+          const span = cell.span || 1;
+          const isNow = curIdx >= col && curIdx < col + span; // 現在列を含むか
+          const cls = [row.cls || "", isNow ? "now" : ""].join(" ").trim();
+          html += `<td colspan="${span}" class="${cls}">${cell.text || ""}</td>`;
+          col += span;
+        });
+        html += "</tr>";
+      });
+      html += "</tbody></table>";
+      document.getElementById("cefr-chart").innerHTML = html;
+    }
+    drawCEFRChart(toCEFR(overall));
+
+    /* ---------- 受講できる講座モーダルの開閉 ---------- */
+    function openCourseModal() { document.getElementById("course-modal").classList.add("open"); }
+    function closeCourseModal() { document.getElementById("course-modal").classList.remove("open"); }
+  </script>
+</body>
+</html>

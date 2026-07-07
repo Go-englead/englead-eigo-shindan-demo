@@ -1,0 +1,637 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>英語力診断テスト 採点画面（試作）</title>
+  <style>
+    :root {
+      --bg: #f4f6f9;
+      --card: #ffffff;
+      --line: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --accent-soft: #dbeafe;
+      --ok: #16a34a;
+      --ok-soft: #dcfce7;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Hiragino Sans", "Yu Gothic", system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    /* ===== 固定ヘッダー（会員情報＋採点進捗＋操作） ===== */
+    .fixed-header {
+      position: sticky; top: 0; z-index: 20;
+      background: #fff; border-bottom: 1px solid var(--line);
+      box-shadow: 0 2px 8px rgba(0,0,0,.05);
+    }
+    .header-inner {
+      max-width: 1320px; margin: 0 auto; padding: 10px 20px;
+      display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+    }
+    .hdr-title { font-size: 15px; font-weight: 700; white-space: nowrap; }
+    .hdr-member { display: flex; flex-direction: column; gap: 6px; }
+    .member-fields { display: flex; gap: 8px; }
+    .member-fields input {
+      padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; width: 150px;
+    }
+    .member-fields input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+
+    .hdr-progress { display: flex; align-items: center; gap: 14px; margin-left: auto; }
+    .hdr-total { font-size: 26px; font-weight: 700; color: var(--accent); white-space: nowrap; }
+    .hdr-total small { font-size: 14px; color: var(--muted); font-weight: 500; }
+    .hdr-breakdown { display: flex; gap: 6px; flex-wrap: wrap; }
+    .hdr-breakdown span {
+      font-size: 11px; background: #f1f5f9; color: var(--muted);
+      padding: 3px 8px; border-radius: 999px; white-space: nowrap;
+    }
+    .hdr-actions { display: flex; gap: 8px; }
+    .btn { padding: 9px 14px; border-radius: 9px; border: none; font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #1d4ed8; }
+    .btn-ghost { background: #fff; color: var(--muted); border: 1px solid var(--line); }
+    .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+
+    /* ===== スクロール領域 ===== */
+    .scroll-area { max-width: 1320px; margin: 0 auto; padding: 20px 20px 80px; }
+    .cat-hint { font-size: 12px; color: var(--muted); background: #fff8e1; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 12px; margin-bottom: 16px; }
+
+    /* カード */
+    .card {
+      background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+      padding: 16px 18px; margin-bottom: 16px;
+    }
+    .card > h2 {
+      font-size: 16px; margin: 0 0 12px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+    }
+    .badge { font-size: 11px; background: var(--accent-soft); color: var(--accent); padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+    .cat-note { font-size: 12px; color: var(--muted); margin: 0 0 12px; font-weight: 400; }
+
+    /* ===== ① 単語：受容｜発信の2カラム ===== */
+    .vocab-cols { display: flex; gap: 16px; flex-wrap: wrap; }
+    .vocab-col { flex: 1; min-width: 340px; }
+    .vocab-col .group-title {
+      font-size: 13px; font-weight: 600; color: var(--accent);
+      margin: 0 0 6px; padding-bottom: 4px; border-bottom: 1px solid var(--accent-soft);
+    }
+    .vocab-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .vocab-table th { background: #3f5568; color: #fff; font-weight: 600; font-size: 12px; padding: 6px 8px; text-align: left; border: 1px solid #cbd5e1; white-space: nowrap; }
+    .vocab-table td { padding: 5px 8px; border: 1px solid var(--line); }
+    .vocab-table tbody tr:nth-child(even) { background: #f8fafc; }
+    .col-no { color: var(--muted); width: 28px; text-align: center; }
+    .col-check { width: 42px; text-align: center; }
+    .col-cefr { width: 48px; text-align: center; }
+    .col-pos { width: 54px; white-space: nowrap; }
+    .vocab-check {
+      width: 22px; height: 22px; border: 2px solid #cbd5e1; border-radius: 5px;
+      background: #fff; cursor: pointer; display: block; margin: 0 auto; transition: all .12s;
+    }
+    .vocab-check:hover { border-color: var(--accent); }
+    .vocab-check.on {
+      border-color: #eab308;
+      background: #eab308 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E") center/15px no-repeat;
+    }
+    .cefr-badge { display: inline-block; background: var(--accent-soft); color: var(--accent); font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; }
+
+    /* ===== ② 文法：問題｜正答ボタンの横並び ===== */
+    .g-row {
+      display: flex; align-items: center; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line);
+    }
+    .g-row.first { border-top: none; }
+    .g-no { font-size: 11px; color: var(--muted); font-weight: 600; width: 44px; flex-shrink: 0; }
+    .g-q { flex: 0 0 32%; font-size: 14px; font-weight: 500; }
+    .g-a { flex: 1; }
+    .g-notes { font-size: 11px; color: var(--muted); margin-top: 3px; }
+    .grammar-answer-btn {
+      width: 100%; text-align: left; font-family: inherit; font-size: 13px; font-weight: 600;
+      border: 1px dashed var(--ok); background: #fff; color: var(--ok);
+      padding: 7px 11px; border-radius: 8px; cursor: pointer; transition: all .12s;
+    }
+    .grammar-answer-btn:hover { background: var(--ok-soft); }
+    .grammar-answer-btn.on { background: var(--ok); border-style: solid; color: #fff; }
+
+    /* ===== ③ リスニング：和訳｜英文の横並び ===== */
+    .l-row {
+      display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line);
+    }
+    .l-row.first { border-top: none; }
+    .l-no { font-size: 11px; color: var(--muted); font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+    .l-jp { flex: 0 0 34%; font-size: 13px; color: #475569; }
+    .l-en { flex: 1; font-size: 15px; }
+    .chunk-inline {
+      border: 1px dashed var(--accent); background: #fff; color: var(--accent);
+      padding: 2px 7px; border-radius: 6px; font-size: 15px; cursor: pointer;
+      font-family: inherit; margin: 0 2px; transition: all .12s;
+    }
+    .chunk-inline:hover { background: var(--accent-soft); }
+    .chunk-inline.on { background: var(--ok-soft); border-style: solid; border-color: var(--ok); color: var(--ok); font-weight: 700; }
+
+    /* ===== ④ スピーキング：2×2グリッド ===== */
+    .sp-topic { background: var(--accent-soft); color: var(--accent); font-weight: 600; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; font-size: 14px; }
+    .sp-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    @media (max-width: 720px) { .sp-grid { grid-template-columns: 1fr; } }
+    .sp-cell { border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+    .sp-cell .sp-label { font-size: 14px; font-weight: 700; margin-bottom: 8px; }
+    .rubric-choices { display: flex; flex-direction: column; gap: 4px; }
+    .rubric-choice {
+      display: flex; align-items: flex-start; gap: 8px; text-align: left;
+      background: #fff; border: 1px solid var(--line); border-radius: 8px;
+      padding: 6px 9px; cursor: pointer; font-family: inherit; transition: all .12s;
+    }
+    .rubric-choice:hover { border-color: var(--accent); }
+    .rubric-choice.on { background: var(--accent-soft); border-color: var(--accent); }
+    .rubric-score {
+      flex-shrink: 0; width: 22px; height: 22px; border-radius: 6px;
+      background: #e2e8f0; color: #475569; font-weight: 700;
+      display: flex; align-items: center; justify-content: center; font-size: 12px;
+    }
+    .rubric-choice.on .rubric-score { background: var(--accent); color: #fff; }
+    .rubric-text { font-size: 11.5px; color: var(--text); line-height: 1.45; }
+  </style>
+  <script>
+    /* 簡易パスワードゲート（社内デモ用・GitHub Pages https で動作） */
+    (function () {
+      var PW_HASH = "d908607e3a7d87b691cc2cce7057c2dd8bc2b701bbc9e14a662bd9e25fc54756";
+      if (localStorage.getItem("demo_auth") === PW_HASH) return;
+      function mount() {
+        var ov = document.createElement("div");
+        ov.style.cssText = "position:fixed;inset:0;background:#0E3860;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font-family:'Noto Sans JP',sans-serif;";
+        ov.innerHTML =
+          '<div style="color:#fff;font-size:18px;font-weight:700;">英語力診断テスト（社内デモ）</div>' +
+          '<div style="color:#cfe0ee;font-size:13px;">パスワードを入力してください</div>' +
+          '<input id="pw-in" type="password" autocomplete="off" style="padding:11px 14px;font-size:16px;border-radius:8px;border:none;width:240px;" />' +
+          '<button id="pw-btn" style="padding:10px 24px;font-size:15px;border-radius:8px;border:none;background:#2E86C1;color:#fff;font-weight:600;cursor:pointer;">開く</button>' +
+          '<div id="pw-err" style="color:#ffd27f;font-size:13px;height:16px;"></div>';
+        document.body.appendChild(ov);
+        document.documentElement.style.overflow = "hidden";
+        async function check() {
+          var v = document.getElementById("pw-in").value;
+          var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v));
+          var hex = Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
+          if (hex === PW_HASH) {
+            localStorage.setItem("demo_auth", PW_HASH);
+            ov.remove();
+            document.documentElement.style.overflow = "";
+          } else { document.getElementById("pw-err").textContent = "パスワードが違います"; }
+        }
+        document.getElementById("pw-btn").onclick = check;
+        document.getElementById("pw-in").addEventListener("keydown", function (e) { if (e.key === "Enter") check(); });
+        document.getElementById("pw-in").focus();
+      }
+      if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
+      else mount();
+    })();
+  </script>
+</head>
+<body>
+  <!-- ===== 固定ヘッダー ===== -->
+  <header class="fixed-header">
+    <div class="header-inner">
+      <div class="hdr-member">
+        <div class="hdr-title">英語力診断テスト 採点</div>
+        <div class="member-fields">
+          <input type="text" id="csid" placeholder="CSID" autocomplete="off" />
+          <input type="text" id="memberName" placeholder="氏名" autocomplete="off" />
+        </div>
+      </div>
+      <div class="hdr-progress">
+        <div class="hdr-total"><span id="totalScore">0</span><small> / <span id="totalMax">44</span>点</small></div>
+        <div class="hdr-breakdown" id="breakdown"></div>
+      </div>
+      <div class="hdr-actions">
+        <button class="btn btn-primary" onclick="onPublish()">成績表を発行</button>
+        <button class="btn btn-ghost" onclick="onReset()">リセット</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ===== スクロール領域 ===== -->
+  <main class="scroll-area">
+    <p class="cat-hint">※ 次の会員に移る前に「リセット」で必ずクリアしてください（他の会員名の混入防止）。</p>
+
+    <!-- ① 単語テスト -->
+    <section class="card">
+      <h2>① 単語テスト <span class="badge">12問 / 12点</span></h2>
+      <div class="vocab-cols" id="vocab-cols"></div>
+    </section>
+
+    <!-- ② 文法 -->
+    <section class="card">
+      <h2>② 文法（瞬間英作文） <span class="badge">4問 / 4点</span></h2>
+      <p class="cat-note">日本語文をすぐ英訳。正答なら「正答」ボタン（英文）を押して1点（部分点なし）。</p>
+      <div id="grammar-rows"></div>
+    </section>
+
+    <!-- ③ リスニング -->
+    <section class="card">
+      <h2>③ リスニング <span class="badge">4問 / 8点</span></h2>
+      <p class="cat-note">和訳は採点対象外。英文中の<span style="color:var(--accent);border:1px dashed var(--accent);border-radius:4px;padding:0 5px;">かたまり</span>を押すと1点加点（完璧に言えたら）。</p>
+      <div id="listening-rows"></div>
+    </section>
+
+    <!-- ④ スピーキング -->
+    <section class="card">
+      <h2>④ スピーキング <span class="badge">1回 / 20点</span></h2>
+      <div class="sp-topic" id="sp-topic"></div>
+      <div class="sp-grid" id="speaking-grid"></div>
+    </section>
+  </main>
+
+  <script>
+    /* =========================================================
+       問題データ（固定・毎回同じ）
+       ========================================================= */
+    const CONFIG = {
+      vocab: {
+        pointPerQ: 1,
+        groups: [
+          {
+            title: "受容（英単語を見て、発音＋意味を答える）",
+            cols: [ { label: "英語", field: "en" }, { label: "日本語", field: "jp" } ],
+            items: [
+              { en: "practice", jp: "練習, 実践", cefr: "A2", pos: "名詞" },
+              { en: "important", jp: "重要な；大切な", cefr: "A1", pos: "形容詞" },
+              { en: "appointment", jp: "予約；約束", cefr: "A2", pos: "名詞" },
+              { en: "starve", jp: "飢えに苦しむ；渇望する", cefr: "A2", pos: "動詞" },
+              { en: "decade", jp: "(10年間ごとの)〜年代", cefr: "B1", pos: "名詞" },
+              { en: "contribution", jp: "貢献、寄与、寄付", cefr: "B2", pos: "名詞" },
+            ],
+          },
+          {
+            title: "発信（日本語を見て、英単語を答える）",
+            cols: [ { label: "日本語", field: "jp" }, { label: "英語", field: "en" } ],
+            items: [
+              { jp: "引っ越し・移住", en: "move", cefr: "A1", pos: "動詞" },
+              { jp: "配達・宅配", en: "delivery", cefr: "B1", pos: "名詞" },
+              { jp: "趣味", en: "hobby, pastime", cefr: "A1", pos: "名詞" },
+              { jp: "休暇", en: "holiday, vacation", cefr: "A2", pos: "名詞" },
+              { jp: "知人・知り合い", en: "acquaintance", cefr: "B2", pos: "名詞" },
+              { jp: "申し込み", en: "application", cefr: "B1", pos: "名詞" },
+            ],
+          },
+        ],
+      },
+      grammar: {
+        pointPerQ: 1,
+        items: [
+          { jp: "すみません、もう一度言っていただけますか？", answer: "Excuse me, could/can you say that (once) again / repeat that?", notes: ["別解：Sorry, come again?"] },
+          { jp: "今求人募集していますか？担当者はいますか？", answer: "Are you hiring now? Is the manager available? / May I talk to your manager?", notes: [] },
+          { jp: "提出した求人応募についてお電話しています。", answer: "I'm calling about the job application (I submitted).", notes: ["talking も可"] },
+          { jp: "来週、月曜日休みで火曜日出勤してもいいですか？", answer: "Is it okay if I take Monday off and come to work on Tuesday next week?", notes: ["Is it possible も可", "Can I take〜 も可"] },
+        ],
+      },
+      listening: {
+        pointPerChunk: 1,
+        questions: [
+          { text: "Where (can I) buy a SIM card for my phone?", jp: "携帯電話用のSIMカードはどこで買えますか?" },
+          { text: "(Can I) negotiate my (working hours) (or) schedule?", jp: "勤務時間やスケジュールを交渉することはできますか?" },
+          { text: "How much (does it) usually (cost to) rent a room (in a) shared house?", jp: "シェアハウスの一部屋を借りるのに、普通どのくらいの費用がかかりますか?" },
+          { text: "Do you know (where I) can find affordable accommodation for a few months?", jp: "数ヶ月間住める手頃な宿泊先をどこで見つけられるか知っていますか?" },
+        ],
+      },
+      speaking: {
+        topic: "あなたの長所は？",
+        maxPerItem: 5,
+        items: [
+          {
+            name: "語彙",
+            rubric: {
+              1: "カタカナを英語として使用（例：マンション→apartment/flat、ジュース→soft drink）／片言以下レベル",
+              2: "トピックにまつわる単語は数語知っている／語彙が問題となり、伝えたいことが伝わらない",
+              3: "語彙の使用は限られているが主旨は伝わる／1箇所以上、単語のパラフレーズ(言い換え)ができる",
+              4: "日本語スピーチで使用した単語は80%以上英語で伝えられる／複雑な構文で文法的間違いはあるが理解に支障は出ない",
+              5: "トピックを議論・説明する幅広い語彙を使用できる／単語の重複なく様々な表現が可能",
+            },
+          },
+          {
+            name: "文章構文",
+            rubric: {
+              1: "文法に則った文章は一つもなし",
+              2: "簡単な構文（I like food, I went to school など）が使える／1文以上かつ5文型程度の文章は作成可能",
+              3: "論理的に話す努力（結論→理由は構成できる）／中学英語レベルの構文（関係代名詞・比較級・when節・if節など）が使える",
+              4: "PREP構造で理由・具体例が1つ挙げられる／レベル3に加え全体の80%は完全な文章、理解できないところはない",
+              5: "高校英文法（分詞構文・無生物主語+that節・提案の動詞+that節・知覚動詞の正確な使用など）／PREP構造で理由・具体例を2つ以上挙げられる",
+            },
+          },
+          {
+            name: "発音",
+            rubric: {
+              1: "発音のほとんどが明瞭でない、もしくはカタカナ英語",
+              2: "アクセントなど間違いが多く、聞き取りが困難な場合もある",
+              3: "アクセント・発音ともに明瞭",
+              4: "音の変化をしばしば再現できる",
+              5: "音の変化も完全に再現できる",
+            },
+          },
+          {
+            name: "流暢さ",
+            rubric: {
+              1: "発する言語が片言以下のため、理解が難しい",
+              2: "言葉の前に5秒程度の長い沈黙がある／2〜3語程度で躓きながら発話",
+              3: "3〜4語程度の文章は途切れず発話可能／繰り返し・言い直し・ためらいが見られる／話すスピードに波がある",
+              4: "5〜6語程度の文章は途切れず発話可能／時折、繰り返し・言い直し等でスピードの一貫性を失う／つなぎ言葉を有効に使えている",
+              5: "7〜8語の塊で発話可能／抑揚や音声の変化が的確で、全体を通してスムーズなスピーチができている",
+            },
+          },
+        ],
+      },
+    };
+
+    /* 採点状態 */
+    const state = { vocab: {}, grammar: {}, listening: {}, speaking: {} };
+
+    /* かたまりを ( ) から抽出 */
+    function extractChunks(text) {
+      const m = text.match(/\(([^)]+)\)/g) || [];
+      return m.map((s) => s.slice(1, -1));
+    }
+
+    /* ---------- ① 単語テスト（受容｜発信の2カラム） ---------- */
+    function buildVocab() {
+      const box = document.getElementById("vocab-cols");
+      let qIndex = 0;
+      CONFIG.vocab.groups.forEach((group) => {
+        const col = document.createElement("div");
+        col.className = "vocab-col";
+        const gt = document.createElement("div");
+        gt.className = "group-title";
+        gt.textContent = group.title;
+        col.appendChild(gt);
+
+        const table = document.createElement("table");
+        table.className = "vocab-table";
+        const thead = document.createElement("thead");
+        thead.innerHTML =
+          `<tr><th>No.</th><th>正答</th>` +
+          group.cols.map((c) => `<th>${c.label}</th>`).join("") +
+          `<th>CEFR</th><th>品詞</th></tr>`;
+        table.appendChild(thead);
+
+        const tbody = document.createElement("tbody");
+        group.items.forEach((item, i) => {
+          const key = `v${qIndex}`;
+          const tr = document.createElement("tr");
+          const tdNo = document.createElement("td");
+          tdNo.className = "col-no";
+          tdNo.textContent = (i + 1) + ".";
+          tr.appendChild(tdNo);
+
+          const tdChk = document.createElement("td");
+          tdChk.className = "col-check";
+          const chk = document.createElement("button");
+          chk.className = "vocab-check";
+          chk.setAttribute("aria-label", "正答");
+          chk.onclick = () => {
+            state.vocab[key] = !state.vocab[key];
+            chk.classList.toggle("on", state.vocab[key]);
+            recalc();
+          };
+          tdChk.appendChild(chk);
+          tr.appendChild(tdChk);
+
+          group.cols.forEach((c) => {
+            const td = document.createElement("td");
+            td.textContent = item[c.field];
+            tr.appendChild(td);
+          });
+
+          const tdCefr = document.createElement("td");
+          tdCefr.className = "col-cefr";
+          tdCefr.innerHTML = `<span class="cefr-badge">${item.cefr}</span>`;
+          tr.appendChild(tdCefr);
+          const tdPos = document.createElement("td");
+          tdPos.className = "col-pos";
+          tdPos.textContent = item.pos;
+          tr.appendChild(tdPos);
+
+          tbody.appendChild(tr);
+          qIndex++;
+        });
+        table.appendChild(tbody);
+        col.appendChild(table);
+        box.appendChild(col);
+      });
+    }
+
+    /* ---------- ② 文法（問題｜正答ボタンの横並び） ---------- */
+    function buildGrammar() {
+      const box = document.getElementById("grammar-rows");
+      CONFIG.grammar.items.forEach((item, q) => {
+        const key = `g${q}`;
+        const row = document.createElement("div");
+        row.className = "g-row" + (q === 0 ? " first" : "");
+
+        const no = document.createElement("div");
+        no.className = "g-no";
+        no.textContent = `第${q + 1}問`;
+
+        const qDiv = document.createElement("div");
+        qDiv.className = "g-q";
+        qDiv.textContent = item.jp;
+
+        const aDiv = document.createElement("div");
+        aDiv.className = "g-a";
+        const btn = document.createElement("button");
+        btn.className = "grammar-answer-btn";
+        btn.textContent = item.answer;
+        btn.onclick = () => {
+          state.grammar[key] = !state.grammar[key];
+          btn.classList.toggle("on", state.grammar[key]);
+          recalc();
+        };
+        aDiv.appendChild(btn);
+        if (item.notes && item.notes.length) {
+          const notes = document.createElement("div");
+          notes.className = "g-notes";
+          notes.innerHTML = item.notes.map((n) => `＊${n}`).join("　");
+          aDiv.appendChild(notes);
+        }
+
+        row.appendChild(no);
+        row.appendChild(qDiv);
+        row.appendChild(aDiv);
+        box.appendChild(row);
+      });
+    }
+
+    /* ---------- ③ リスニング（和訳｜英文の横並び） ---------- */
+    function buildListening() {
+      const box = document.getElementById("listening-rows");
+      CONFIG.listening.questions.forEach((q, qi) => {
+        const chunks = extractChunks(q.text);
+        const row = document.createElement("div");
+        row.className = "l-row" + (qi === 0 ? " first" : "");
+
+        const no = document.createElement("div");
+        no.className = "l-no";
+        no.textContent = `第${qi + 1}問（${chunks.length}点）`;
+
+        const jp = document.createElement("div");
+        jp.className = "l-jp";
+        jp.textContent = q.jp;
+
+        const en = document.createElement("div");
+        en.className = "l-en";
+        const regex = /\(([^)]+)\)|([^()]+)/g;
+        let m, ci = 0;
+        while ((m = regex.exec(q.text)) !== null) {
+          if (m[1] !== undefined) {
+            const key = `l${qi}_${ci}`;
+            const btn = document.createElement("button");
+            btn.className = "chunk-inline";
+            btn.textContent = m[1];
+            btn.onclick = () => {
+              state.listening[key] = !state.listening[key];
+              btn.classList.toggle("on", state.listening[key]);
+              recalc();
+            };
+            en.appendChild(btn);
+            ci++;
+          } else {
+            en.appendChild(document.createTextNode(m[2]));
+          }
+        }
+
+        row.appendChild(no);
+        row.appendChild(jp);
+        row.appendChild(en);
+        box.appendChild(row);
+      });
+    }
+
+    /* ---------- ④ スピーキング（2×2グリッド） ---------- */
+    function buildSpeaking() {
+      document.getElementById("sp-topic").textContent = "お題：" + CONFIG.speaking.topic;
+      const grid = document.getElementById("speaking-grid");
+      CONFIG.speaking.items.forEach((item) => {
+        state.speaking[item.name] = 0;
+        const cell = document.createElement("div");
+        cell.className = "sp-cell";
+        const lbl = document.createElement("div");
+        lbl.className = "sp-label";
+        lbl.textContent = item.name;
+        cell.appendChild(lbl);
+
+        const list = document.createElement("div");
+        list.className = "rubric-choices";
+        for (let s = CONFIG.speaking.maxPerItem; s >= 1; s--) {
+          const choice = document.createElement("button");
+          choice.className = "rubric-choice";
+          choice.dataset.score = s;
+          choice.innerHTML = `<span class="rubric-score">${s}</span><span class="rubric-text">${item.rubric[s]}</span>`;
+          choice.onclick = () => {
+            state.speaking[item.name] = s;
+            list.querySelectorAll(".rubric-choice").forEach((x) =>
+              x.classList.toggle("on", Number(x.dataset.score) === s)
+            );
+            recalc();
+          };
+          list.appendChild(choice);
+        }
+        cell.appendChild(list);
+        grid.appendChild(cell);
+      });
+    }
+
+    /* ---------- 合計スコアの再計算 ---------- */
+    function recalc() {
+      let vocab = 0;
+      for (const k in state.vocab) if (state.vocab[k]) vocab += CONFIG.vocab.pointPerQ;
+      let grammar = 0;
+      for (const k in state.grammar) if (state.grammar[k]) grammar += CONFIG.grammar.pointPerQ;
+      let listening = 0;
+      for (const k in state.listening) if (state.listening[k]) listening += CONFIG.listening.pointPerChunk;
+      let speaking = 0;
+      for (const k in state.speaking) speaking += state.speaking[k];
+
+      const total = vocab + grammar + listening + speaking;
+      document.getElementById("totalScore").textContent = total;
+
+      const max = getMax();
+      document.getElementById("breakdown").innerHTML = `
+        <span>単語 ${vocab}/${max.vocab}</span>
+        <span>文法 ${grammar}/${max.grammar}</span>
+        <span>リスニング ${listening}/${max.listening}</span>
+        <span>スピーキング ${speaking}/${max.speaking}</span>`;
+    }
+
+    /* ---------- 満点計算 ---------- */
+    function getMax() {
+      const vocabCount = CONFIG.vocab.groups.reduce((s, g) => s + g.items.length, 0);
+      const listeningMax = CONFIG.listening.questions.reduce((s, q) => s + extractChunks(q.text).length, 0) * CONFIG.listening.pointPerChunk;
+      return {
+        vocab: vocabCount * CONFIG.vocab.pointPerQ,
+        grammar: CONFIG.grammar.items.length * CONFIG.grammar.pointPerQ,
+        listening: listeningMax,
+        speaking: CONFIG.speaking.items.length * CONFIG.speaking.maxPerItem,
+      };
+    }
+
+    /* ---------- リセット ---------- */
+    function onReset() {
+      if (!confirm("採点内容と会員情報をすべてクリアします。よろしいですか？")) return;
+      location.reload();
+    }
+
+    /* ---------- 成績表の発行 ---------- */
+    function onPublish() {
+      const name = document.getElementById("memberName").value.trim();
+      if (!name) { alert("会員名を入力してください。"); return; }
+      const data = collectResult();
+      const url = "result.html?data=" + encodeURIComponent(JSON.stringify(data));
+      window.open(url, "_blank");
+    }
+
+    /* 現在の採点内容を集計 */
+    function collectResult() {
+      const juyoTotal = CONFIG.vocab.groups[0].items.length;
+      const hasshinTotal = CONFIG.vocab.groups[1].items.length;
+      let juyoC = 0, hasshinC = 0;
+      for (let i = 0; i < juyoTotal; i++) if (state.vocab[`v${i}`]) juyoC++;
+      for (let i = juyoTotal; i < juyoTotal + hasshinTotal; i++) if (state.vocab[`v${i}`]) hasshinC++;
+      let grammarC = 0;
+      CONFIG.grammar.items.forEach((_, q) => { if (state.grammar[`g${q}`]) grammarC++; });
+      let lisC = 0, lisT = 0;
+      CONFIG.listening.questions.forEach((qq, qi) => {
+        const n = extractChunks(qq.text).length;
+        lisT += n;
+        for (let c = 0; c < n; c++) if (state.listening[`l${qi}_${c}`]) lisC++;
+      });
+      const d = new Date();
+      const p = (n) => String(n).padStart(2, "0");
+      const date = `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())}`;
+      return {
+        date: date,
+        memberName: document.getElementById("memberName").value.trim(),
+        csid: document.getElementById("csid").value.trim(),
+        vocab: { juyo: { correct: juyoC, total: juyoTotal }, hasshin: { correct: hasshinC, total: hasshinTotal } },
+        grammar: { correct: grammarC, total: CONFIG.grammar.items.length },
+        listening: { correct: lisC, total: lisT },
+        speaking: {
+          語彙: state.speaking["語彙"] || 0,
+          文章構文: state.speaking["文章構文"] || 0,
+          発音: state.speaking["発音"] || 0,
+          流暢さ: state.speaking["流暢さ"] || 0,
+          max: CONFIG.speaking.maxPerItem,
+        },
+      };
+    }
+
+    /* ---------- 初期化 ---------- */
+    buildVocab();
+    buildGrammar();
+    buildListening();
+    buildSpeaking();
+    document.getElementById("totalMax").textContent = (() => {
+      const m = getMax(); return m.vocab + m.grammar + m.listening + m.speaking;
+    })();
+    recalc();
+  </script>
+</body>
+</html>

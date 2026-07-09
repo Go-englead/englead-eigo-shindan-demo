@@ -37,11 +37,8 @@
     }
     .hdr-title { font-size: 15px; font-weight: 700; white-space: nowrap; }
     .hdr-member { display: flex; flex-direction: column; gap: 6px; }
-    .member-fields { display: flex; gap: 8px; }
-    .member-fields input {
-      padding: 7px 10px; border: 1px solid var(--line); border-radius: 8px; font-size: 13px; width: 150px;
-    }
-    .member-fields input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent); }
+    .member-info { display: flex; gap: 14px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+    .member-info b { color: var(--text); font-weight: 700; }
 
     .hdr-progress { display: flex; align-items: center; gap: 14px; margin-left: auto; }
     .hdr-total { font-size: 26px; font-weight: 700; color: var(--accent); white-space: nowrap; }
@@ -60,6 +57,15 @@
 
     /* ===== スクロール領域 ===== */
     .scroll-area { max-width: 1320px; margin: 0 auto; padding: 20px 20px 80px; }
+
+    /* 最下部・中央の発行ボタン */
+    .publish-area { text-align: center; padding: 28px 0 12px; }
+    .btn-publish {
+      background: var(--accent); color: #fff; border: none; border-radius: 12px;
+      padding: 16px 52px; font-size: 17px; font-weight: 700; cursor: pointer;
+      box-shadow: 0 4px 14px rgba(37,99,235,.3); transition: all .12s;
+    }
+    .btn-publish:hover { background: #1d4ed8; transform: translateY(-1px); }
     .cat-hint { font-size: 12px; color: var(--muted); background: #fff8e1; border: 1px solid #fde68a; border-radius: 8px; padding: 8px 12px; margin-bottom: 16px; }
 
     /* カード */
@@ -155,34 +161,77 @@
     .rubric-text { font-size: 11.5px; color: var(--text); line-height: 1.45; }
   </style>
   <script>
-    /* 簡易パスワードゲート（社内デモ用・GitHub Pages https で動作） */
+    /* ログインゲート（担当者選択＋会員情報＋共通PW／社内デモ用・GitHub Pages https で動作）
+       ・毎回ログイン画面を表示（担当者・CSID・氏名を都度入力＝入力漏れ／他会員情報の残留を防止）
+       ・共通PW認証は成績表(result.html)のゲート解除用に localStorage 保持 */
     (function () {
       var PW_HASH = "d908607e3a7d87b691cc2cce7057c2dd8bc2b701bbc9e14a662bd9e25fc54756";
-      if (localStorage.getItem("demo_auth") === PW_HASH) return;
+      /* 担当者リスト（新メンバーはこの配列に1行追記。リスト外は「その他」で手入力） */
+      var GRADERS = ["Rena Yabe", "Yuto Aso", "Mitsuko Fujita", "Eno Yoshizumi", "Kosuke Ishimaru", "Yuka Soejima"];
+
       function mount() {
         var ov = document.createElement("div");
-        ov.style.cssText = "position:fixed;inset:0;background:#0E3860;z-index:99999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;font-family:'Noto Sans JP',sans-serif;";
+        ov.id = "login-overlay";
+        ov.style.cssText = "position:fixed;inset:0;background:#0E3860;z-index:99999;display:flex;align-items:center;justify-content:center;padding:20px;font-family:'Noto Sans JP','Hiragino Sans',sans-serif;overflow:auto;";
+        var opts = GRADERS.map(function (n) { return '<option value="' + n + '">' + n + '</option>'; }).join("");
+        var fld = "width:100%;padding:10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;box-sizing:border-box;";
+        var lbl = "font-size:12px;font-weight:600;color:#334155;display:block;margin-top:12px;margin-bottom:5px;";
         ov.innerHTML =
-          '<div style="color:#fff;font-size:18px;font-weight:700;">英語力診断テスト（社内デモ）</div>' +
-          '<div style="color:#cfe0ee;font-size:13px;">パスワードを入力してください</div>' +
-          '<input id="pw-in" type="password" autocomplete="off" style="padding:11px 14px;font-size:16px;border-radius:8px;border:none;width:240px;" />' +
-          '<button id="pw-btn" style="padding:10px 24px;font-size:15px;border-radius:8px;border:none;background:#2E86C1;color:#fff;font-weight:600;cursor:pointer;">開く</button>' +
-          '<div id="pw-err" style="color:#ffd27f;font-size:13px;height:16px;"></div>';
+          '<div style="background:#fff;border-radius:14px;padding:26px 24px;width:340px;max-width:100%;box-shadow:0 10px 30px rgba(0,0,0,.3);">' +
+            '<div style="font-size:17px;font-weight:700;color:#0E3860;">英語力診断テスト</div>' +
+            '<div style="font-size:12px;color:#64748b;margin-top:3px;">担当者・会員情報を入力して開始してください</div>' +
+            '<label style="' + lbl + '">担当者</label>' +
+            '<select id="lg-grader" style="' + fld + '">' +
+              '<option value="" disabled selected>選択してください</option>' + opts +
+              '<option value="__other__">その他（手入力）</option>' +
+            '</select>' +
+            '<input id="lg-grader-other" type="text" placeholder="担当者名を入力" autocomplete="off" style="display:none;margin-top:8px;' + fld + '" />' +
+            '<label style="' + lbl + '">CSID</label>' +
+            '<input id="lg-csid" type="text" placeholder="CSID" autocomplete="off" style="' + fld + '" />' +
+            '<label style="' + lbl + '">氏名</label>' +
+            '<input id="lg-name" type="text" placeholder="会員氏名" autocomplete="off" style="' + fld + '" />' +
+            '<label style="' + lbl + '">パスワード</label>' +
+            '<input id="lg-pw" type="password" autocomplete="off" style="' + fld + '" />' +
+            '<div id="lg-err" style="color:#dc2626;font-size:12px;min-height:16px;margin-top:8px;"></div>' +
+            '<button id="lg-btn" style="width:100%;padding:11px;margin-top:4px;border:none;border-radius:8px;background:#2E86C1;color:#fff;font-size:15px;font-weight:600;cursor:pointer;">テスト開始</button>' +
+          '</div>';
         document.body.appendChild(ov);
         document.documentElement.style.overflow = "hidden";
-        async function check() {
-          var v = document.getElementById("pw-in").value;
-          var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(v));
+
+        var sel = ov.querySelector("#lg-grader");
+        var other = ov.querySelector("#lg-grader-other");
+        sel.addEventListener("change", function () {
+          if (sel.value === "__other__") { other.style.display = "block"; other.focus(); }
+          else { other.style.display = "none"; }
+        });
+
+        var err = ov.querySelector("#lg-err");
+        async function start() {
+          var grader = sel.value === "__other__" ? other.value.trim() : sel.value;
+          var csid = ov.querySelector("#lg-csid").value.trim();
+          var name = ov.querySelector("#lg-name").value.trim();
+          var pw = ov.querySelector("#lg-pw").value;
+          if (!grader) { err.textContent = "担当者を選択してください"; return; }
+          if (!csid) { err.textContent = "CSIDを入力してください"; return; }
+          if (!name) { err.textContent = "氏名を入力してください"; return; }
+          var buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(pw));
           var hex = Array.from(new Uint8Array(buf)).map(function (b) { return b.toString(16).padStart(2, "0"); }).join("");
-          if (hex === PW_HASH) {
-            localStorage.setItem("demo_auth", PW_HASH);
-            ov.remove();
-            document.documentElement.style.overflow = "";
-          } else { document.getElementById("pw-err").textContent = "パスワードが違います"; }
+          if (hex !== PW_HASH) { err.textContent = "パスワードが違います"; return; }
+          /* 認証成功：会員情報を保持し、ヘッダーへ反映 */
+          localStorage.setItem("demo_auth", PW_HASH);
+          window.LOGIN = { grader: grader, csid: csid, memberName: name };
+          var g = document.getElementById("disp-grader");
+          var c = document.getElementById("disp-csid");
+          var n = document.getElementById("disp-name");
+          if (g) g.textContent = grader;
+          if (c) c.textContent = csid;
+          if (n) n.textContent = name;
+          ov.remove();
+          document.documentElement.style.overflow = "";
         }
-        document.getElementById("pw-btn").onclick = check;
-        document.getElementById("pw-in").addEventListener("keydown", function (e) { if (e.key === "Enter") check(); });
-        document.getElementById("pw-in").focus();
+        ov.querySelector("#lg-btn").onclick = start;
+        ov.querySelector("#lg-pw").addEventListener("keydown", function (e) { if (e.key === "Enter") start(); });
+        sel.focus();
       }
       if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", mount);
       else mount();
@@ -195,9 +244,10 @@
     <div class="header-inner">
       <div class="hdr-member">
         <div class="hdr-title">英語力診断テスト 採点</div>
-        <div class="member-fields">
-          <input type="text" id="csid" placeholder="CSID" autocomplete="off" />
-          <input type="text" id="memberName" placeholder="氏名" autocomplete="off" />
+        <div class="member-info">
+          <span>担当者：<b id="disp-grader">-</b></span>
+          <span>CSID：<b id="disp-csid">-</b></span>
+          <span>氏名：<b id="disp-name">-</b></span>
         </div>
       </div>
       <div class="hdr-progress">
@@ -205,7 +255,6 @@
         <div class="hdr-breakdown" id="breakdown"></div>
       </div>
       <div class="hdr-actions">
-        <button class="btn btn-primary" onclick="onPublish()">成績表を発行</button>
         <button class="btn btn-ghost" onclick="onReset()">リセット</button>
       </div>
     </div>
@@ -241,6 +290,11 @@
       <div class="sp-topic" id="sp-topic"></div>
       <div class="sp-grid" id="speaking-grid"></div>
     </section>
+
+    <!-- 成績表を発行（最下部・中央：上から採点しきってから押す動線で入力漏れ防止） -->
+    <div class="publish-area">
+      <button class="btn-publish" onclick="onPublish()">成績表を発行</button>
+    </div>
   </main>
 
   <script>
@@ -581,8 +635,8 @@
 
     /* ---------- 成績表の発行 ---------- */
     function onPublish() {
-      const name = document.getElementById("memberName").value.trim();
-      if (!name) { alert("会員名を入力してください。"); return; }
+      const name = (window.LOGIN && window.LOGIN.memberName) || "";
+      if (!name) { alert("会員情報が未入力です。リセットして再ログインしてください。"); return; }
       const data = collectResult();
       const url = "result.html?data=" + encodeURIComponent(JSON.stringify(data));
       window.open(url, "_blank");
@@ -606,10 +660,12 @@
       const d = new Date();
       const p = (n) => String(n).padStart(2, "0");
       const date = `${d.getFullYear()}/${p(d.getMonth() + 1)}/${p(d.getDate())}`;
+      const login = window.LOGIN || {};
       return {
         date: date,
-        memberName: document.getElementById("memberName").value.trim(),
-        csid: document.getElementById("csid").value.trim(),
+        grader: login.grader || "",
+        memberName: login.memberName || "",
+        csid: login.csid || "",
         vocab: { juyo: { correct: juyoC, total: juyoTotal }, hasshin: { correct: hasshinC, total: hasshinTotal } },
         grammar: { correct: grammarC, total: CONFIG.grammar.items.length },
         listening: { correct: lisC, total: lisT },

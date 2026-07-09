@@ -1,3 +1,11 @@
-index_backup_v0.6.html
-result_backup.html
+# バックアップ（ローカル保持・公開リポジトリには含めない）
+index_backup_*.html
+result_backup*.html
+
+# 問題入力テンプレ（参考用・公開不要）
+questions_template.md
+assets/questions_template.md
+
+# その他
 venv/
+.DS_Store
